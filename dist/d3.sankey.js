@@ -314,6 +314,7 @@ d3.sankeyChart = function (data, options) {
     self.dynamicLinkColor = options.dynamicLinkColor ? options.dynamicLinkColor : false;
     self.staticLinkColor = options.staticLinkColor ? options.staticLinkColor : '#000';
     self.trafficInLinks = options.trafficInLinks ? options.trafficInLinks : false;
+    self.onNodeClick = options.onNodeClick ? options.onNodeClick : null;
     var valueFormat = options.value && options.value.format ? options.value.format : ',.0f';
     self.formatNumber = d3.format(valueFormat);
     var valueUnit = options.value && options.value.unit ? options.value.unit : '';
@@ -391,11 +392,15 @@ d3.sankeyChart = function (data, options) {
             .enter().append('g')
             .attr('class', 'node')
             .attr('transform', d => `translate(${d.x}, ${d.y})`)
+            .on('click', function() {
+                if (!self.onNodeClick || d3.event.defaultPrevented) {
+                    return
+                };
+
+                self.onNodeClick();
+            })
             .call(d3.behavior.drag()
                 .origin(d => d)
-                .on('dragstart', function () {
-                    this.parentNode.appendChild(this);
-                })
                 .on('drag', dragmove));
 
         node.append('rect')
@@ -522,6 +527,7 @@ d3.sankeyChart = function (data, options) {
     }
 
     function dragmove(d) {
+        this.parentNode.appendChild(this);
         d3.select(this)
             .attr('transform', `translate(${d.x}, ${(d.y = Math.max(0, Math.min(self.innerHeight - d.dy, d3.event.y)))})`);
         sankey.relayout();
