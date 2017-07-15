@@ -392,12 +392,12 @@ d3.sankeyChart = function (data, options) {
             .enter().append('g')
             .attr('class', 'node')
             .attr('transform', d => `translate(${d.x}, ${d.y})`)
-            .on('click', function() {
+            .on('click', function(d) {
                 if (!self.onNodeClick || d3.event.defaultPrevented) {
                     return
                 };
 
-                self.onNodeClick();
+                self.onNodeClick(d);
             })
             .call(d3.behavior.drag()
                 .origin(d => d)

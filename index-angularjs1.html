@@ -19,21 +19,25 @@
     app.controller('MainController', ['$scope', function ($scope) {
         $scope.options = {
             width: 960,
-            height: 500,
+            height: 800,
             nodeWidth: 15,
             nodePadding: 10,
             dynamicLinkColor: true,
-            margin: {top: 1, right: 1, bottom: 6, left: 1}
+            margin: {top: 1, right: 1, bottom: 6, left: 1},
+            onNodeClick: function(d) {
+              console.log(d.clickMessage)
+              console.log('clicked')
+            }
         };
         $scope.data = {
             nodes: [
-                {'node': 0, 'name': 'Junior'},
-                {'node': 1, 'name': 'Mid Senior'},
-                {'node': 2, 'name': 'Senior'},
-                {'node': 3, 'name': 'Tech Lead'},
-                {'node': 4, 'name': 'CTO'},
-                {'node': 5, 'name': 'COO'},
-                {'node': 6, 'name': 'CEO'}
+                {'node': 0, 'name': 'Junior', 'clickMessage': 'Clicked Junior'},
+                {'node': 1, 'name': 'Mid Senior', 'clickMessage': 'Clicked Mid Senior'},
+                {'node': 2, 'name': 'Senior', 'clickMessage': 'Clicked Senior'},
+                {'node': 3, 'name': 'Tech Lead', 'clickMessage': 'Clicked Tech Lead'},
+                {'node': 4, 'name': 'CTO', 'clickMessage': 'Clicked CTO'},
+                {'node': 5, 'name': 'COO', 'clickMessage': 'Clicked COO'},
+                {'node': 6, 'name': 'CEO', 'clickMessage': 'Clicked CEO'}
             ],
             links: [
                 {'source': 0, 'target': 1, 'value': 1000},
