@@ -316,6 +316,14 @@ d3.sankeyChart = function (data, options) {
     self.staticLinkColor = options.staticLinkColor ? options.staticLinkColor : '#000';
     self.trafficInLinks = options.trafficInLinks ? options.trafficInLinks : false;
     self.onNodeClick = options.onNodeClick ? options.onNodeClick : null;
+    self.getNodeColor = options.getNodeColor ? options.getNodeColor : d => {
+                d.color = self.color(d.name.replace(/ .*/, ''));
+                return d.color;
+            };
+    self.getLinkColor = options.getLinkColor ? options.getLinkColor : d => {
+                d.color = self.color(d.source.name.replace(/ .*/, ''));
+                return d.color;
+            };
     var valueFormat = options.value && options.value.format ? options.value.format : ',.0f';
     self.formatNumber = d3.format(valueFormat);
     var valueUnit = options.value && options.value.unit ? options.value.unit : '';
@@ -374,7 +382,7 @@ d3.sankeyChart = function (data, options) {
             })
             .style('stroke', function (d) {
                 let color = self.staticLinkColor ? self.staticLinkColor : '#000';
-                color = self.dynamicLinkColor ? self.color(d.source.name.replace(/ .*/, '')) : color;
+                color = self.dynamicLinkColor ? self.getLinkColor(d) : color;
 
                 return color;
             })
@@ -414,10 +422,7 @@ d3.sankeyChart = function (data, options) {
         node.append('rect')
             .attr('height', d => d.dy)
             .attr('width', sankey.nodeWidth())
-            .style('fill', d => {
-                d.color = self.color(d.name.replace(/ .*/, ''));
-                return d.color;
-            })
+            .style('fill', d => self.getNodeColor(d))
             .style({
                 stroke: 'none',
                 cursor: 'move',
