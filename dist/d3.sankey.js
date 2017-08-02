@@ -311,6 +311,7 @@ d3.sankeyChart = function (data, options) {
     self.height = options.height;
     self.innerWidth = options.width - self.margin.left - self.margin.right;
     self.innerHeight = options.height - self.margin.top - self.margin.bottom;
+    self.bgColor = options.background ? options.background : null;
     self.dynamicLinkColor = options.dynamicLinkColor ? options.dynamicLinkColor : false;
     self.staticLinkColor = options.staticLinkColor ? options.staticLinkColor : '#000';
     self.trafficInLinks = options.trafficInLinks ? options.trafficInLinks : false;
@@ -339,6 +340,13 @@ d3.sankeyChart = function (data, options) {
             .attr('height', self.height)
             .append('g')
             .attr('transform', `translate(${self.margin.left}, ${self.margin.top})`);
+
+        if (self.bgColor) {
+            svg.append('rect')
+                .attr('width', self.width)
+                .attr('height', self.height)
+                .attr("fill", self.bgColor);
+        }
     };
     self.initCore = function () {
         sankey = new sankeyCore()
