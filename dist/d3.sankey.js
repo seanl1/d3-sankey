@@ -3,6 +3,7 @@ var sankeyCore = function () {
         nodeWidth = 24,
         nodePadding = 8,
         size = [1, 1],
+        method = 'optimize',
         nodes = [],
         links = [];
 
@@ -35,6 +36,12 @@ var sankeyCore = function () {
         size = _;
         return sankey;
     };
+
+    sankey.method = function(_) {
+        if (!arguments.length) return method;
+        method = _;
+        return sankey;
+    }
 
     sankey.layout = function (iterations) {
         computeNodeLinks();
@@ -303,6 +310,8 @@ d3.sankeyChart = function (data, options) {
 
     var self = this;
 
+    self.positionMethod = options.positionMethod ? options.positionMethod : null;
+
     self.nodeWidth = options.node && options.node.width ? options.node.width : 15;
     self.nodePadding = options.node && options.node.padding ? options.node.padding : 10;
 
@@ -360,7 +369,8 @@ d3.sankeyChart = function (data, options) {
         sankey = new sankeyCore()
             .nodeWidth(self.nodeWidth)
             .nodePadding(self.nodePadding)
-            .size([self.innerWidth, self.innerHeight]);
+            .size([self.innerWidth, self.innerHeight])
+            .method(self.positionMethod);
 
         sankey
             .nodes(data.nodes)
