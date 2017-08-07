@@ -3,6 +3,7 @@ d3.sankeyBasic = function() {
     this._nodePadding = 8;
     this._size = [1, 1];
     this._nodes = [];
+    this._nodesByBreadth = [];
     this._links = [];
 }
 
@@ -24,6 +25,12 @@ d3.sankeyBasic.prototype.nodes = function(_) {
     return this;
 };
 
+d3.sankeyBasic.prototype.nodesByBreadth = function(_) {
+  if (!arguments.length) return this._nodesByBreadth;
+  this._nodesByBreadth = _;
+  return this;
+};
+
 d3.sankeyBasic.prototype.links = function(_) {
     if (!arguments.length) return this._links;
     this._links = _;
@@ -41,6 +48,7 @@ d3.sankeyBasic.prototype.layout = function() {
     this.computeNodeValues();
     this.computeNodeBreadths();
     this.computeNodeDepths();
+    this.setNodePositions();
     this.computeLinkDepths();
 
     return this;
@@ -131,6 +139,7 @@ d3.sankeyBasic.prototype.computeNodeBreadths = function() {
     //
     this.moveSinksRight(x);
     this.scaleNodeBreadths((this._size[0] - this._nodeWidth) / (x - 1));
+    this.nodesByBreadth(this.groupByBreadths());
 }
 
 d3.sankeyBasic.prototype.moveSinksRight = function(x) {
@@ -147,7 +156,7 @@ d3.sankeyBasic.prototype.scaleNodeBreadths = function(kx) {
     });
 }
 
-d3.sankeyBasic.prototype.computeNodeDepths = function() {
+d3.sankeyBasic.prototype.groupByBreadths = function() {
     var nodesByBreadth = d3.nest()
         .key(function (d) {
             return d.x;
@@ -158,21 +167,22 @@ d3.sankeyBasic.prototype.computeNodeDepths = function() {
             return d.values;
         });
 
-    this.initializeNodeDepth(nodesByBreadth);
-    this.resolveCollisions(nodesByBreadth);
-
     return nodesByBreadth;
 };
 
-d3.sankeyBasic.prototype.initializeNodeDepth = function(nodesByBreadth) {
+d3.sankeyBasic.prototype.computeNodeDepths = function() {
     var size = this._size[1];
     var np = this._nodePadding;
-    var ky = d3.min(nodesByBreadth, function (nodes) {
+    var ky = d3.min(this._nodesByBreadth, function (nodes) {
         return (size - (nodes.length - 1) * np) / d3.sum(nodes, value);
     });
 
+    this.initializeNodeDepth(ky);
+};
+
+d3.sankeyBasic.prototype.initializeNodeDepth = function(ky) {
     // node.y sets y-position of top of each node at a given x-location.
-    nodesByBreadth.forEach(function (nodes) {
+    this._nodesByBreadth.forEach(function (nodes) {
         nodes.forEach(function (node, i) {
             node.y = i;
             node.dy = node.value * ky;
@@ -184,8 +194,8 @@ d3.sankeyBasic.prototype.initializeNodeDepth = function(nodesByBreadth) {
     });
 }
 
-d3.sankeyBasic.prototype.resolveCollisions = function(nodesByBreadth) {
-    nodesByBreadth.forEach(function (nodes) {
+d3.sankeyBasic.prototype.setNodePositions = function() {
+    this._nodesByBreadth.forEach(function (nodes) {
         var node,
             dy,
             y0 = 0,
@@ -201,20 +211,13 @@ d3.sankeyBasic.prototype.resolveCollisions = function(nodesByBreadth) {
             y0 = node.y + node.dy + this._nodePadding;
         }
 
-        // If the bottommost node goes outside the bounds, push it back up.
-        dy = y0 - this._nodePadding - this._size[1];
-        if (dy > 0) {
-            y0 = node.y -= dy;
-
-            // Push any overlapping nodes back up.
-            for (i = n - 2; i >= 0; --i) {
-                node = nodes[i];
-                dy = node.y + node.dy + this._nodePadding - y0;
-                if (dy > 0) node.y -= dy;
-                y0 = node.y;
-            }
+        // Center nodes vertically
+        let offset = (this._size[1] - (y0 - this._nodePadding)) / 2;
+        for (i = 0; i < n; ++i) {
+            node = nodes[i];
+            node.y += offset;
         }
-    }, this);
+    }, this)
 }
 
 d3.sankeyBasic.prototype.computeLinkDepths = function() {
@@ -267,51 +270,74 @@ d3.sankeyOptimized.prototype.iterations = function(_) {
     return this;
 };
 
-d3.sankeyOptimized.prototype.layout = function() {
-    this.computeNodeLinks();
-    this.computeNodeValues();
-    this.computeNodeBreadths();
-    nodesByBreadth = this.computeNodeDepths();
-    this.optimizeNodes(nodesByBreadth);
-    this.computeLinkDepths();
-
-    return this;
-};
-
-d3.sankeyOptimized.prototype.optimizeNodes = function(nodesByBreadth) {
+d3.sankeyOptimized.prototype.setNodePositions = function() {
+    this.resolveCollisions()
     let iterations = this._iterations;
     for (var alpha = 1; iterations > 0; --iterations) {
-        this.relaxRightToLeft(alpha *= .99, nodesByBreadth);
-        this.resolveCollisions(nodesByBreadth);
-        this.relaxLeftToRight(alpha, nodesByBreadth);
-        this.resolveCollisions(nodesByBreadth);
+        this.relaxRightToLeft(alpha *= .99);
+        this.resolveCollisions();
+        this.relaxLeftToRight(alpha);
+        this.resolveCollisions();
     }
 }
 
-d3.sankeyOptimized.prototype.relaxLeftToRight = function(alpha, nodesByBreadth) {
-    nodesByBreadth.forEach(function (nodes, breadth) {
+d3.sankeyOptimized.prototype.resolveCollisions = function() {
+    this._nodesByBreadth.forEach(function (nodes) {
+        var node,
+            dy,
+            y0 = 0,
+            n = nodes.length,
+            i;
+
+        // Push any overlapping nodes down.
+        nodes.sort(ascendingDepth);
+        for (i = 0; i < n; ++i) {
+            node = nodes[i];
+            dy = y0 - node.y;
+            if (dy > 0) node.y += dy;
+            y0 = node.y + node.dy + this._nodePadding;
+        }
+
+        // If the bottommost node goes outside the bounds, push it back up.
+        dy = y0 - this._nodePadding - this._size[1];
+        if (dy > 0) {
+            y0 = node.y -= dy;
+
+            // Push any overlapping nodes back up.
+            for (i = n - 2; i >= 0; --i) {
+                node = nodes[i];
+                dy = node.y + node.dy + this._nodePadding - y0;
+                if (dy > 0) node.y -= dy;
+                y0 = node.y;
+            }
+        }
+    }, this);
+}
+
+d3.sankeyOptimized.prototype.relaxLeftToRight = function(alpha) {
+    this._nodesByBreadth.forEach(function (nodes, breadth) {
         nodes.forEach(function (node) {
             if (node.targetLinks.length) {
                 var y = d3.sum(node.targetLinks, weightedSource) / d3.sum(node.targetLinks, value);
                 node.y += (y - center(node)) * alpha;
             }
         });
-    });
+    }, this);
 
     function weightedSource(link) {
         return center(link.source) * link.value;
     }
 }
 
-d3.sankeyOptimized.prototype.relaxRightToLeft = function(alpha, nodesByBreadth) {
-    nodesByBreadth.slice().reverse().forEach(function (nodes) {
+d3.sankeyOptimized.prototype.relaxRightToLeft = function(alpha) {
+    this._nodesByBreadth.slice().reverse().forEach(function (nodes) {
         nodes.forEach(function (node) {
             if (node.sourceLinks.length) {
                 var y = d3.sum(node.sourceLinks, weightedTarget) / d3.sum(node.sourceLinks, value);
                 node.y += (y - center(node)) * alpha;
             }
         });
-    });
+    }, this);
 
     function weightedTarget(link) {
         return center(link.target) * link.value;
