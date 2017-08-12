@@ -174,7 +174,7 @@ d3.sankeyBasic.prototype.computeNodeDepths = function() {
     var size = this._size[1];
     var np = this._nodePadding;
     var ky = d3.min(this._nodesByBreadth, function (nodes) {
-        return (size - (nodes.length - 1) * np) / d3.sum(nodes, value);
+        return (size - (nodes.length - 1) * 1.1* np) / d3.sum(nodes, value);
     });
 
     this.initializeNodeDepth(ky);
@@ -361,10 +361,9 @@ d3.sankeyChart = function (data, options) {
     self.height = options.height;
     self.innerWidth = options.width - self.margin.left - self.margin.right;
     self.innerHeight = options.height - self.margin.top - self.margin.bottom;
-    self.bgColor = options.background ? options.background : null;
+    self.bgColor = options.background ? options.background : 'white';
     self.dynamicLinkColor = options.dynamicLinkColor ? options.dynamicLinkColor : false;
     self.staticLinkColor = options.staticLinkColor ? options.staticLinkColor : '#000';
-    self.trafficInLinks = options.trafficInLinks ? options.trafficInLinks : false;
     self.onNodeClick = options.onNodeClick ? options.onNodeClick : null;
     self.getNodeColor = options.getNodeColor ? options.getNodeColor : d => {
                 d.color = self.color(d.name.replace(/ .*/, ''));
@@ -399,12 +398,11 @@ d3.sankeyChart = function (data, options) {
             .append('g')
             .attr('transform', `translate(${self.margin.left}, ${self.margin.top})`);
 
-        if (self.bgColor) {
-            svg.append('rect')
-                .attr('width', self.width)
-                .attr('height', self.height)
-                .attr("fill", self.bgColor);
-        }
+        svg.append('rect')
+            .attr('width', self.width)
+            .attr('height', self.height)
+            .attr("fill", self.bgColor)
+            .call(d3.behavior.zoom().scaleExtent([1, 8]).on("zoom", zoom));
     };
     self.initCore = function () {
         sankey = new self.chartType()
@@ -504,96 +502,10 @@ d3.sankeyChart = function (data, options) {
             .attr('text-anchor', 'start');
     };
 
-    self.renderTrafficInLinks = function () {
-        const linkExtent = d3.extent(data.links, d => d.value);
-
-        const frequencyScale = d3.scale.linear()
-            .domain(linkExtent)
-            .range([0.05, 1]);
-
-        /* const particleSize = */
-        d3.scale.linear()
-            .domain(linkExtent)
-            .range([1, 5]);
-
-        data.links.forEach(currentLink => {
-            currentLink.freq = frequencyScale(currentLink.value);
-            currentLink.particleSize = 2;
-            currentLink.particleColor = d3.scale.linear().domain([0, 1])
-                .range([currentLink.source.color, currentLink.target.color]);
-        });
-
-        /* const t = */
-        d3.timer(tick, 1000);
-        let particles = [];
-
-        function tick(elapsed /* , time */) {
-            particles = particles.filter(d => d.current < d.path.getTotalLength());
-
-            d3.selectAll('path.link')
-                .each(
-                    function (d) {
-                        //        if (d.freq < 1) {
-                        for (let x = 0; x < 2; x++) {
-                            const offset = (Math.random() - 0.5) * (d.dy - 4);
-                            if (Math.random() < d.freq) {
-                                const length = this.getTotalLength();
-                                particles.push({
-                                    link: d,
-                                    time: elapsed,
-                                    offset,
-                                    path: this,
-                                    length,
-                                    animateTime: length,
-                                    speed: 0.5 + (Math.random())
-                                });
-                            }
-                        }
-                    });
-
-            particleEdgeCanvasPath(elapsed);
-        }
-
-        function particleEdgeCanvasPath(elapsed) {
-            if(d3.select('ng-sankey div canvas').node()){
-                const context = d3.select('ng-sankey div canvas').node().getContext('2d');
-
-                var canvasWidth = self.width ? self.width : 1000;
-                var canvasHeight = self.height ? self.height : 1000;
-                context.clearRect(0, 0, canvasWidth, canvasHeight);
-
-                context.fillStyle = 'gray';
-                context.lineWidth = '1px';
-                for (const x in particles) {
-                    if ({}.hasOwnProperty.call(particles, x)) {
-                        const currentTime = elapsed - particles[x].time;
-                        //        let currentPercent = currentTime / 1000 * particles[x].path.getTotalLength();
-                        particles[x].current = currentTime * 0.15 * particles[x].speed;
-                        const currentPos = particles[x].path.getPointAtLength(particles[x].current);
-                        context.beginPath();
-                        context.fillStyle = particles[x].link.particleColor(0);
-                        context.arc(
-                            currentPos.x,
-                            currentPos.y + particles[x].offset,
-                            particles[x].link.particleSize,
-                            0,
-                            2 * Math.PI
-                        );
-                        context.fill();
-                    }
-                }
-            }
-        }
-    };
-
     self.initContainers();
     self.initCore();
     self.renderLinks();
-
     self.renderNodes();
-    if (self.trafficInLinks) {
-        self.renderTrafficInLinks();
-    }
 
     function dragmove(d) {
         this.parentNode.appendChild(this);
@@ -603,5 +515,10 @@ d3.sankeyChart = function (data, options) {
         link.attr('d', path);
     }
 
+    function zoom(d) {
+        svg
+          .attr("transform",
+          "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+    }
 
 }
