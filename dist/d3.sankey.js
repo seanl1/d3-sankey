@@ -174,7 +174,7 @@ d3.sankeyBasic.prototype.computeNodeDepths = function() {
     var size = this._size[1];
     var np = this._nodePadding;
     var ky = d3.min(this._nodesByBreadth, function (nodes) {
-        return (size - (nodes.length - 1) * np) / d3.sum(nodes, value);
+        return (size - (nodes.length - 1) * 1.1 * np) / d3.sum(nodes, value);
     });
 
     this.initializeNodeDepth(ky);
