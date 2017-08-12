@@ -23,10 +23,15 @@
             nodeWidth: 15,
             nodePadding: 10,
             dynamicLinkColor: true,
+            trafficInLinks: true,
             margin: {top: 1, right: 1, bottom: 6, left: 1},
             onNodeClick: function(d) {
               console.log(d.clickMessage)
               console.log('clicked')
+            },
+            chartConfig: {
+                type: d3.sankeyOptimized,
+                settings: {iterations: 32}
             }
         };
         $scope.data = {
