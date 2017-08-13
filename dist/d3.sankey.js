@@ -1,6 +1,7 @@
 d3.sankeyBasic = function() {
     this._nodeWidth = 24;
     this._nodePadding = 8;
+    this._nodeValueCutoff = 0;
     this._size = [1, 1];
     this._nodes = [];
     this._nodesByBreadth = [];
@@ -16,6 +17,12 @@ d3.sankeyBasic.prototype.nodeWidth = function(_) {
 d3.sankeyBasic.prototype.nodePadding = function(_) {
     if (!arguments.length) return this._nodePadding;
     this._nodePadding = +_;
+    return this;
+};
+
+d3.sankeyBasic.prototype.nodeValueCutoff = function(_) {
+    if (!arguments.length) return this._nodeValueCutoff;
+    this._nodeValueCutoff = +_;
     return this;
 };
 
@@ -167,6 +174,72 @@ d3.sankeyBasic.prototype.groupByBreadths = function() {
             return d.values;
         });
 
+    if (this._nodeValueCutoff > 0) {
+        var filteredLinks = [];
+        var i, j, k, l;
+        nodesByBreadth.forEach(function(nodes) {
+            // Determine total value of nodes at current breadth
+            let valueSum = 0.0;
+            for (i = 0, nNodes = nodes.length; i < nNodes; i++) {
+                valueSum += nodes[i].value;
+            }
+
+            i = 0, j = 0;
+            while (i < nodes.length) {
+                const node = nodes[i];
+                if (node.value / valueSum > this._nodeValueCutoff) {
+                    nodes[j++] = node;
+                } else {
+                    // Remove filtered node from nodes list
+                    let nodeIndex = this._nodes.indexOf(node);
+                    this._nodes.splice(nodeIndex, 1)
+
+                    // Remove any links referencing filtered node
+                    k = 0, l = 0;
+                    while (k < this._links.length) {
+                        const link = this._links[k];
+                        if (link.source != node && link.target != node) {
+                            this._links[l++] = link;
+                        } else {
+                            filteredLinks.push(link)
+                        }
+                        k++;
+                    }
+                    this._links.length = l;
+                }
+                i++;
+            }
+            nodes.length = j;
+            return nodes;
+        }, this)
+
+        nodesByBreadth.forEach(function(nodes) {
+            for (i = 0, nNodes = nodes.length; i < nNodes; i++) {
+                node = nodes[i]
+
+                j = 0, k = 0;
+                while (j < node.sourceLinks.length) {
+                    const link = node.sourceLinks[j];
+                    if (!filteredLinks.includes(link)) {
+                        node.sourceLinks[k++] = link;
+                    }
+                    j++;
+                }
+                node.sourceLinks.length = k;
+
+                j = 0, k = 0;
+                while (j < node.targetLinks.length) {
+                    const link = node.targetLinks[j];
+                    if (!filteredLinks.includes(link)) {
+                        node.targetLinks[k++] = link;
+                    }
+                    j++;
+                }
+                node.targetLinks.length = k;
+            }
+        })
+    }
+
     return nodesByBreadth;
 };
 
@@ -174,7 +247,7 @@ d3.sankeyBasic.prototype.computeNodeDepths = function() {
     var size = this._size[1];
     var np = this._nodePadding;
     var ky = d3.min(this._nodesByBreadth, function (nodes) {
-        return (size - (nodes.length - 1) * 1.1 * np) / d3.sum(nodes, value);
+        return (size - (nodes.length - 1) * np) / d3.sum(nodes, value);
     });
 
     this.initializeNodeDepth(ky);
@@ -355,6 +428,7 @@ d3.sankeyChart = function (data, options) {
 
     self.nodeWidth = options.node && options.node.width ? options.node.width : 15;
     self.nodePadding = options.node && options.node.padding ? options.node.padding : 10;
+    self.nodeValueCutoff = options.node && options.node.valueCutoff ? options.node.valueCutoff : 0;
 
     self.margin = options.margin;
     self.width = options.width;
@@ -410,6 +484,7 @@ d3.sankeyChart = function (data, options) {
         sankey = new self.chartType()
             .nodeWidth(self.nodeWidth)
             .nodePadding(self.nodePadding)
+            .nodeValueCutoff(self.nodeValueCutoff)
             .size([self.innerWidth, self.innerHeight]);
 
         // Apply settings specific to this chart type
